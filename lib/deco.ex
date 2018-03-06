@@ -75,6 +75,12 @@ defmodule Deco do
     update_def_key(expr, do: fun)
   end
 
+  @doc "Alias for update_do"
+  @spec update_body(defun :: Macro.t(), updater :: updater) :: Macro.t()
+  def update_body(defun, updater) do
+    update_do(defun, updater)
+  end
+
 
   @doc """
   Lets you update the function definition head
@@ -115,6 +121,49 @@ defmodule Deco do
     {_, _, args} = get_head(defun)
     args
   end
+
+  @spec update_args(defun :: Macro.t(), updater) :: Macro.t()
+  def update_args(defun, updater) do
+    update_head(defun, fn {name, m, args} ->
+      {name, m, updater.(args)}
+    end)
+  end
+
+  @doc """
+  Creates a list of fresh variables, one per each formal argument in head.
+  """
+  def fresh_args(defun, context \\ __MODULE__) do
+    defun |> get_args |> Enum.count |> Macro.generate_arguments(context)
+  end
+
+  @doc """
+  Make the function definition private, prefixing its name with `prefix`
+  """
+  def privatize(defun, prefix) do
+    defun = update_head(defun, fn {name, c, a} -> {:"#{prefix}#{name}", c, a} end)
+    case defun do
+      {:def, c, d} -> {:defp, c, d}
+      {:defmacro, c, d} -> {:defmacrop, c, d}
+      x -> x
+    end
+  end
+
+  @doc """
+  Generates and binds a new variable to each formal parameter
+
+  Returns a tuple of the updated defun and a list of the bound argument variables.
+  """
+  @spec intro_args(defun :: Macro.t(), context :: atom) :: {Macro.t(), list(Macro.t())}
+  def intro_args(defun, context \\ __MODULE__) do
+    vars = fresh_args(defun, context)
+    args = get_args(defun)
+    args = Enum.zip([vars, args]) |> Enum.map(fn {v, a} ->
+      quote do: unquote(v) = unquote(a)
+    end)
+    defun = update_args(defun, fn _ -> args end)
+    {defun, vars}
+  end
+
 
   @doc """
   Lets you update or remove the function definition guard.

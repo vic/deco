@@ -20,6 +20,26 @@ defmodule DecoTest.MyDecos do
       {name, m, Enum.reverse(args)}
     end)
   end
+
+  @doc """
+  What an is_authorized plug decoration would look
+  """
+  def is_authorized(defun) do
+    # create a new variable for each arg
+    {defun, args} = Deco.intro_args(defun)
+    defun |> Deco.update_body(fn body ->
+      quote do
+        # get the argument we want
+        [conn | _] = unquote(args)
+        if is_list(conn) do
+          unquote(body)
+        else
+          :halted
+        end
+      end
+    end)
+  end
+
 end
 
 defmodule DecoTest do
@@ -92,5 +112,16 @@ defmodule DecoTest do
     end
     assert String.contains?(out, "called")
     refute String.contains?(out, "result")
+  end
+
+
+  deco {MyDecos.is_authorized} in
+  def access(_) do
+    :granted
+  end
+
+  test "is_authorized" do
+    assert :halted == access(nil)
+    assert :granted == access([user: :me])
   end
 end

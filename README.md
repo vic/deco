@@ -68,6 +68,44 @@ AST and produce a new one for the one on top of it.
 
 For more examples, see the [tests](https://github.com/vic/deco/blob/master/test/deco_test.exs) and the [use the source, Luke](https://github.com/vic/deco/blob/master/lib/deco.ex)
 
+## AuthDeco
+
+This example was adapted from [arjan/decorator](https://github.com/arjan/decorator) to show how
+it look like. The main difference is, here we either access the argument variables as they
+are present on the function head or create fresh variables for each argument, because it's even
+possible that some arguments are just pattern matched and not bound by any variable on the
+function definition.
+
+```
+   deco {AuthDeco.is_authorized} in
+   def create(%Plug.Conn{}, %{}) do
+     ...
+   end
+```
+
+
+```elixir
+defmodule AuthDeco do
+  def is_authorized(defun) do
+    # create a new variable for each arg
+    {defun, args} = Deco.intro_args(defun)
+    defun |> Deco.update_body(fn body ->
+      quote do
+        # get the args we are interested in
+        [conn | _] = unquote(args)
+        if conn.assigns.user do
+          unquote(body)
+        else
+          conn
+          |> send_resp(401, "unauthorized")
+          |> halt()
+        end
+      end
+    end)
+  end
+end
+```
+
 
 ## Installation
 
