@@ -1,0 +1,6 @@
+language: elixir
+elixir:
+ - 1.6.1
+otp_release:
+ - 10.0
+sudo: false
