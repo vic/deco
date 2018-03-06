@@ -4,7 +4,7 @@ defmodule Deco.MixProject do
   def project do
     [
       app: :deco,
-      version: "0.1.0",
+      version: "0.1.1",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
