@@ -15,6 +15,10 @@ function decoration is performed at compile-time.
 
 ## Usage
 
+```elixir
+use Deco
+```
+
 The syntax is `deco DECORATORS in FORM` where decorators is a tuple of
 one or more decorators, and form is tipically a function definition.
 
@@ -76,7 +80,7 @@ are present on the function head or create fresh variables for each argument, be
 possible that some arguments are just pattern matched and not bound by any variable on the
 function definition.
 
-```
+```elixir
    deco {AuthDeco.is_authorized} in
    def create(%Plug.Conn{}, %{}) do
      ...
