@@ -5,7 +5,7 @@
 
 Yes, yet another package for decorating elixir functions :).
 
-However, `deco`'s [core is minimalist]() in comparission to others, 
+However, `deco`'s [core is minimalist](https://github.com/vic/deco/blob/master/lib/deco/core.ex) in comparission to others, 
 uses much less magic, does not overrides anything like `Kernel.def` 
 nor any operator.
 
@@ -19,19 +19,19 @@ The syntax is `deco DECORATORS in FORM` where decorators is a tuple of
 one or more decorators, and form is tipically a function definition.
 
 `decorators` are just plain functions you write that take the AST of
-`FORM` and just return a modified AST of it. The [`Deco`]() module has
+`FORM` and just return a modified AST of it. The `Deco` module has
 some convenience functions for updating the AST.
 
 Since `deco` runs at compile time, you cannot use functions being 
 defined in the same module that is using `deco`. Normally it's better
 to define your decorators on a separate module.
 
-The following example [taken from a test]() decorates a function with 
+The following example [taken from a test](https://github.com/vic/deco/blob/master/test/deco_test.exs#L79) decorates a function with 
 a `Logger` tracer that will print the arguments given before applying
 to the original function, and the its final result.
 
 ```elixir
-   deco { Example.trace() } in
+   deco { Trace.trace() } in
    def foo(x) do
      x
    end
@@ -39,7 +39,7 @@ to the original function, and the its final result.
 
 Decorators can take arguments, the AST will be prepended to the list
 of arguments given by you.
-For example, [Deco.pipe_result]() will as it name implies just pipe the 
+For example, [Deco.pipe_result](https://github.com/vic/deco/blob/master/test/deco_test.exs#L79) will as it name implies just pipe the 
 function return value into the code given as argument to the decorator.
 
 ```elixir
@@ -66,7 +66,7 @@ AST and produce a new one for the one on top of it.
    => "Nhoj
 ```
 
-For more examples, see the [tests]() and the [use the source, Luke]()
+For more examples, see the [tests](https://github.com/vic/deco/blob/master/test/deco_test.exs) and the [use the source, Luke](https://github.com/vic/deco/blob/master/lib/deco.ex)
 
 
 ## Installation
