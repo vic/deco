@@ -71,7 +71,7 @@ defmodule Deco do
   @spec update_do(defun :: Macro.t(), updater :: updater) :: Macro.t()
   def update_do(defun, updater)
 
-  def update_do(expr = {:def, _, _}, fun) do
+  def update_do(expr = {_def, _, _}, fun) do
     update_def_key(expr, do: fun)
   end
 
@@ -87,18 +87,18 @@ defmodule Deco do
   """
   @spec update_head(defun :: Macro.t(), updater :: updater) :: Macro.t()
   def update_head(defun, updater)
-  def update_head({:def, m, [{:when, _, [head, guard]}, opts]}, fun) do
-    update_head(head, m, guard, opts, fun)
+  def update_head({defn, m, [{:when, _, [head, guard]}, opts]}, fun) do
+    update_head(defn, head, m, guard, opts, fun)
   end
-  def update_head({:def, m, [head, opts]}, fun) do
-    update_head(head, m, _guard = nil, opts, fun)
+  def update_head({defn, m, [head, opts]}, fun) do
+    update_head(defn, head, m, _guard = nil, opts, fun)
   end
 
-  defp update_head(head, m, guard, opts, fun) do
+  defp update_head(defn, head, m, guard, opts, fun) do
     head = fun.(head)
     case guard do
-      nil -> {:def, m, [head, opts]}
-      guard -> {:def, m, [{:when, m, [head, guard]}, opts]}
+      nil -> {defn, m, [head, opts]}
+      guard -> {defn, m, [{:when, m, [head, guard]}, opts]}
     end
   end
 
@@ -107,8 +107,8 @@ defmodule Deco do
   """
   @spec get_head(defun :: Macro.t()) :: Macro.t()
   def get_head(defun)
-  def get_head({:def, _, [{:when, _, [head, _]}, _]}), do: head
-  def get_head({:def, _, [head, _]}), do: head
+  def get_head({_def, _, [{:when, _, [head, _]}, _]}), do: head
+  def get_head({_def, _, [head, _]}), do: head
 
   @spec get_name(defun :: Macro.t()) :: atom
   def get_name(defun) do
@@ -177,24 +177,69 @@ defmodule Deco do
   @spec update_guard(defun :: Macro.t(), updater :: updater) :: Macro.t()
   def update_guard(defun, updater)
 
-  def update_guard({:def, m, [{:when, _, [head, guard]}, opts]}, fun) do
-    update_guard(guard, m, head, opts, fun)
+  def update_guard({defn, m, [{:when, _, [head, guard]}, opts]}, fun) do
+    update_guard(defn, guard, m, head, opts, fun)
   end
 
-  def update_guard({:def, m, [head, opts]}, fun) do
-    update_guard(nil, m, head, opts, fun)
+  def update_guard({defn, m, [head, opts]}, fun) do
+    update_guard(defn, nil, m, head, opts, fun)
   end
 
-  defp update_guard(guard, m, head, opts, fun) do
+  defp update_guard(defn, guard, m, head, opts, fun) do
     case fun.(guard) do
-      nil -> {:def, m, [head, opts]}
-      guard -> {:def, m, [{:when, m, [head, guard]}, opts]}
+      nil -> {defn, m, [head, opts]}
+      guard -> {defn, m, [{:when, m, [head, guard]}, opts]}
     end
   end
 
-  defp update_def_key({:def, meta, [head, opts]}, [{key, fun}]) do
+  defp update_def_key({defn, meta, [head, opts]}, [{key, fun}]) do
     opts = update_in(opts[key], fun)
-    {:def, meta, [head, opts]}
+    {defn, meta, [head, opts]}
+  end
+
+  @doc ~S"""
+  Wraps the decorated function invocation with another call.
+
+  The wrapper function will take as arguments: a function reference to the
+  decorated function, all the arguments given to the decorated function
+  invocation and all the arguments given in the decorator declaration.
+
+      defp bar_wrapper(decorated, name, say) do
+        "#{say} #{decorated.(name)}"
+      end
+
+      deco {Deco.around( bar_wrapper("hello") )} in
+      def bar(name) do
+        name |> String.capitalize
+      end
+
+
+      bar("world")
+      => "hello World"
+
+
+  This function works by making the original function definition private
+  and calling your wrapper with a reference to the private function, this
+  way you can alter or prevent the original function invocation like an
+  around advice.
+
+  """
+  defmacro around(defun, wrapper) do
+    quote bind_quoted: [wrapper: Macro.escape(wrapper), defun: defun] do
+      private = Deco.privatize(defun, "__wrap#{:erlang.unique_integer([:positive])}_")
+      priv_name = Deco.get_name(private)
+      args  = Deco.fresh_args(defun)
+      ref = {:&, [], [{:/, [], [{priv_name, [], nil}, length(args)]}]}
+
+      call_wrapper = Deco.Core.add_args(:prepend, wrapper, [ref] ++ args)
+
+      defun = defun
+      |> Deco.update_args(fn _ -> args end)
+      |> Deco.update_guard(fn _ -> nil end)
+      |> Deco.update_body(fn _ -> call_wrapper end)
+
+      {:__block__, [], [defun, private]}
+    end
   end
 
 end

@@ -30,9 +30,10 @@ Since `deco` runs at compile time, you cannot use functions being
 defined in the same module that is using `deco`. Normally it's better
 to define your decorators on a separate module.
 
-The following example [taken from a test](https://github.com/vic/deco/blob/master/test/deco_test.exs#L79) decorates a function with 
-a `Logger` tracer that will print the arguments given before applying
-to the original function, and the its final result.
+The following example decorates the function with a 
+[tracer](https://github.com/vic/deco/blob/master/lib/deco/trace.ex) 
+that will use `Logger` to print the arguments given before applying
+the original function, and the its final result.
 
 ```elixir
    deco { Trace.trace() } in
@@ -43,14 +44,18 @@ to the original function, and the its final result.
 
 Decorators can take arguments, the AST will be prepended to the list
 of arguments given by you.
-For example, [Deco.pipe_result](https://github.com/vic/deco/blob/master/test/deco_test.exs#L79) will as it name implies just pipe the 
-function return value into the code given as argument to the decorator.
+
+Also, because decorators operate on the AST they have full access to it
+allowing them to for example, introduce new guards or remove them.
 
 ```elixir
-   deco { Deco.pipe_result(to_string) } in
+   deco { Deco.update_guard(fn _ -> nil end) } in
    def foo(x) when is_atom(x) do
      x
    end
+   
+   foo("hey")
+   => "hey"
 ```
 
 Decorators can be composed, the one at the end will take the original
@@ -58,8 +63,8 @@ AST and produce a new one for the one on top of it.
 
 ```elixir
    deco {
-     Deco.pipe_result(String.capitalize()),
-     Deco.pipe_result(String.reverse()),
+     Deco.pipe_result(String.capitalize),
+     Deco.pipe_result(String.reverse),
      Deco.pipe_result(to_string)
    } in
    def foo(x) do
@@ -70,44 +75,49 @@ AST and produce a new one for the one on top of it.
    => "Nhoj
 ```
 
+You can decorate using a simple function, without having to mess with
+the AST if you dont want to. The `Deco.around` decorator will act as
+an _around advice_ and will give you a reference to the decorated 
+function (made private) and all the arguments given on invocation.
+
+```elixir
+   # our private around advice
+   defp bar_wrapper(decorated, name, say) do
+     "#{say} #{decorated.(name)}"
+   end
+
+   deco {Deco.around( bar_wrapper("hello") )} in
+   def bar(name) do
+     name |> String.capitalize
+   end
+
+
+   bar("world")
+   => "hello World"
+```
+
 For more examples, see the [tests](https://github.com/vic/deco/blob/master/test/deco_test.exs) and the [use the source, Luke](https://github.com/vic/deco/blob/master/lib/deco.ex)
 
 ## AuthDeco
 
 This example was adapted from [arjan/decorator](https://github.com/arjan/decorator) to show how
-it look like. The main difference is, here we either access the argument variables as they
-are present on the function head or create fresh variables for each argument, because it's even
-possible that some arguments are just pattern matched and not bound by any variable on the
-function definition.
+it would look like using deco. 
 
 ```elixir
-   deco {AuthDeco.is_authorized} in
-   def create(%Plug.Conn{}, %{}) do
+   defp is_authorized(decorated, conn, params) do
+      if conn.assigns.user do
+        decorated.(conn, params)
+      else
+        conn
+        |> send_resp(401, "unauthorized")
+        |> halt()
+      end
+   end
+
+   deco {Deco.around(is_authorized)} in
+   def create(conn, params) do
      ...
    end
-```
-
-
-```elixir
-defmodule AuthDeco do
-  def is_authorized(defun) do
-    # create a new variable for each arg
-    {defun, args} = Deco.intro_args(defun)
-    defun |> Deco.update_body(fn body ->
-      quote do
-        # get the args we are interested in
-        [conn | _] = unquote(args)
-        if conn.assigns.user do
-          unquote(body)
-        else
-          conn
-          |> send_resp(401, "unauthorized")
-          |> halt()
-        end
-      end
-    end)
-  end
-end
 ```
 
 

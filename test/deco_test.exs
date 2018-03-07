@@ -124,4 +124,18 @@ defmodule DecoTest do
     assert :halted == access(nil)
     assert :granted == access([user: :me])
   end
+
+  defp wrapper(ref, x, n) do
+    v = ref.(x + n)
+    {x, n, v}
+  end
+
+  deco {Deco.around(wrapper(3))} in
+  def dup(x) do
+    x * 2
+  end
+
+  test "wrap with normal function" do
+    assert {4, 3, 14} == dup(4)
+  end
 end
