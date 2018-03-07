@@ -1,4 +1,4 @@
-# Deco - Minimalist Function Decorators for Elixir.
+# Deco - Minimalist function decorators and around-advice for Elixir.
 
 <a href="https://travis-ci.org/vic/deco"><img src="https://travis-ci.org/vic/deco.svg"></a>
 [hexdocs](https://hexdocs.pm/deco).
@@ -96,7 +96,7 @@ function (made private) and all the arguments given on invocation.
    => "hello World"
 ```
 
-For more examples, see the [tests](https://github.com/vic/deco/blob/master/test/deco_test.exs) and the [use the source, Luke](https://github.com/vic/deco/blob/master/lib/deco.ex)
+For more examples, see the [tests](https://github.com/vic/deco/blob/master/test/deco_test.exs) or [use the source, Luke](https://github.com/vic/deco/blob/master/lib/deco.ex)
 
 ## AuthDeco
 
